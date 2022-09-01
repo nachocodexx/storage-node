@@ -1,0 +1,73 @@
+<configuration>
+
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+<!--        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">-->
+<!--            <layout class="mx.cinvestav.log.MySampleLayout" >-->
+<!--                <nodeId>${NODE_ID}</nodeId>-->
+<!--            </layout>-->
+<!--        </encoder>-->
+    </appender>
+
+<!--    <timestamp key="bySecond" datePattern="yyyyMMdd'T'HHmmss"/>-->
+
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>INFO</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+<!--        <file>${LOG_PATH}/${NODE_ID}-${bySecond}.txt</file>-->
+        <file>${LOG_PATH}/${LOG_NAME}.log</file>
+        <encoder>
+            <pattern>%d{HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+
+        <!--        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">-->
+<!--            <layout class="mx.cinvestav.log.MySampleLayout" >-->
+<!--                <nodeId>${NODE_ID}</nodeId>-->
+<!--            </layout>-->
+<!--        </encoder>-->
+    </appender>
+
+<!--    <appender name="ERROR-FILE" class="ch.qos.logback.core.FileAppender">-->
+<!--        <file>${LOG_PATH}/${NODE_ID}-error}.txt</file>-->
+<!--        <append>true</append>-->
+<!--        <encoder>-->
+<!--            <pattern>%-4relative [%thread] %-5level %logger{35} - %msg %n</pattern>-->
+<!--        </encoder>-->
+<!--    </appender>-->
+
+<!--    <logger name="error" level="DEBUG" additivity="false">-->
+<!--        <appender-ref ref="ERROR-FILE"/>-->
+<!--    </logger>-->
+
+
+
+    <logger name="default">
+        <appender-ref ref="FILE"/>
+    </logger>
+    <logger name="default">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+<!--    <logger name="mx.cinvestav.MainV5">-->
+<!--        <appender-ref ref="FILE"/>-->
+<!--    </logger>-->
+<!--    <root level="DEBUG">-->
+<!--        <appender-ref ref="STDOUT" />-->
+<!--&lt;!&ndash;        <appender-ref ref="FILE" />&ndash;&gt;-->
+<!--    </root>-->
+<!--    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">-->
+<!--        <encoder>-->
+<!--            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level - %msg - %elapsedTime{}%n</pattern>-->
+<!--        </encoder>-->
+<!--    </appender>-->
+
+<!--    <root level="debug">-->
+<!--        <appender-ref ref="STDOUT" />-->
+<!--    </root>-->
+</configuration>

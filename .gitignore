@@ -1,0 +1,5 @@
+.bsp/
+.idea/
+target/
+./commands
+LOG_PATH_IS_UNDEFINED/
