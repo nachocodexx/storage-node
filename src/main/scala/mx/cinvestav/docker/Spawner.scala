@@ -8,15 +8,17 @@ object Spawner {
   def createNode(
                   nodeId:String= "",
                   ports:Docker.Ports,
-                  image:String,
-                  network:Docker.Network,
-                  environments:Map[String,String],
+                  image:String = "nachocode/storage-node:v10",
+                  network:Docker.Network = Docker.Network(
+                    name = "raac", labels = Map.empty[String,String]
+                  ),
+                  environments:Map[String,String] = Map.empty[String,String],
                   ipcMode:String="",
                   volumes:Map[String,String]=Map.empty[String,String],
                   labels:Map[String,String]=Map.empty[String,String],
                   externalNetwork:Boolean = true,
-                  resources:Docker.Resources
-                )(implicit ctx:NodeContext) =
+                  resources:Docker.Resources = Docker.Resources.empty
+                )(implicit ctx:NodeContext): IO[String] =
   {
     for {
       _                <- IO.unit

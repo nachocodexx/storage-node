@@ -17,6 +17,13 @@ lazy val root = (project in file("."))
         //
         case x if x.contains("module-info.class")=> MergeStrategy.last
         case x if x.contains("mozilla/public-suffix-list.txt")=> MergeStrategy.last
+        case x if x.contains("org/apache/commons/logging/Log.class") => MergeStrategy.last
+        case x if x.contains("org/apache/commons/logging/LogConfigurationException.class") => MergeStrategy.last
+        case x if x.contains("org/apache/commons/logging/LogFactory.class") => MergeStrategy.last
+        case x if x.contains("org/apache/commons/logging/impl/NoOpLog.class") => MergeStrategy.last
+        case x if x.contains("org/apache/commons/logging/impl/SimpleLog$1.class") => MergeStrategy.last
+        case x if x.contains("org/apache/commons/logging/impl/SimpleLog.class") => MergeStrategy.last
+//        case x if x.contains("org/apache/commons/logging/Si.class") => MergeStrategy.last
         case x =>
           val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
           oldStrategy(x)

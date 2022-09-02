@@ -42,14 +42,16 @@ object Declarations {
                        diskCapacity:Long,
                        memoryCapacity:Long,
                        balls:List[Ball]=Nil,
-                       children:List[NodeX]
+                       children:List[NodeX],
+                       pendingReplications:List[ReplicationProcess]
                        )
     case class NodeX(id:String, port:Int)
 
     case class NodeState(
                           children:List[NodeX] = Nil,
                           usedDiskCapacity:Long = 0L,
-                          balls:Map[String,Ball]= Map.empty[String,Ball]
+                          balls:Map[String,Ball]= Map.empty[String,Ball],
+                          pendingReplications:List[ReplicationProcess] = Nil
                         )
     case class NodeContext(
                             config:Config,
@@ -68,6 +70,7 @@ object Declarations {
 //    case class Proactive(metadata:Map[String,String])
 
     case class ReplicationProcess(
+                                 who:String="",
                                  what:List[What],
                                  where:List[WhereEntry],
                                  how:How,

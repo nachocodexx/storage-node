@@ -1,0 +1,26 @@
+version: "3"
+services:
+  sn0:
+    image: nachocode/storage-node:v10
+    container_name: sn0
+    hostname: sn0
+    environment:
+      NODE_ID: "sn0"
+      NODE_PORT: 6666
+      SINK_PATH: "/sink"
+      LOG_PATH: "/logs"
+      PARENT_NODE: ""
+      DISK_CAPACITY: 1000000000000
+      MEMORY_CAPACITY: 100000000000
+    ports:
+      - 3000:6666
+    networks:
+      - raac
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/test/logs:/logs"
+      - "/test/sink/sn0:/sink"
+
+networks:
+  raac:
+    external: true

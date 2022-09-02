@@ -26,6 +26,12 @@ import retry.implicits._
 //
 import scala.concurrent.duration._
 import language.postfixOps._
+///
+import fs2.Stream
+//
+import io.circe._
+import io.circe.generic.auto._
+import io.circe.syntax._
 
 
 object Main extends IOApp{
@@ -70,6 +76,48 @@ object Main extends IOApp{
       initialState  = NodeState(children = Nil, usedDiskCapacity = config.diskCapacity)
       implicit0(state:Ref[IO,NodeState]) <- IO.ref(initialState)
       _            <- ctx.logger.debug(s"SERVER ON PORT ${config.port}")
+
+      _ <- Stream.awakeEvery[IO](period = 5.seconds)
+        .evalMap{ _ =>
+          for {
+            currentState <- state.get
+            children     = currentState.children
+            childrenIds  = children.map(_.id)
+            pendings     = currentState.pendingReplications
+            _            <- pendings.traverse{ p=>
+               for {
+                  _      <- IO.unit
+                  _      <- if(childrenIds.contains(p.who)) {
+                    for {
+                      _ <- IO.unit
+                      uri    = Uri.unsafeFromString(s"http://${p.who}:${ctx.config.port}/api/v${ctx.config.apiVersion}/write")
+                      entity = Entity(
+                        body = Stream.emits((p::Nil).asJson.noSpaces.getBytes)
+                      )
+                      req = Request[IO](
+                        method = Method.POST,
+                        uri = uri,
+                        entity = entity
+                      )
+                      _            <- ctx.client.stream(req = req)
+                        .evalTap { response =>
+                          if (response.status.compare(Status.Ok) == 0) state.update(s => s.copy(pendingReplications = s.pendingReplications.filter(x => x != p)))
+                          else IO.unit
+                        }
+                        .evalTap{
+                          response => ctx.logger.debug("TRY_PENDING_RESPONSE "+response.toString)
+                        }
+                        .compile.drain
+                    } yield ()
+                  }
+                  else IO.unit
+               } yield ()
+            }.handleError{ e=>
+              ctx.logger.debug(e.getMessage)
+            }
+          } yield ()
+        }
+        .compile.drain.start
       exitCode     <- Server()
         .serve
         .compile

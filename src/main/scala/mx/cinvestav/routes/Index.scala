@@ -1,5 +1,8 @@
 package mx.cinvestav.routes
-import mx.cinvestav.Declarations.{Ball, NodeContext, NodeId, NodeInfo, NodeState, NodeX, ReplicationProcess}
+import mx.cinvestav.Declarations.{Ball, Docker, NodeContext, NodeId, NodeInfo, NodeState, NodeX, ReplicationProcess, WhereEntry}
+import mx.cinvestav.docker.Spawner
+
+import scala.util.Random
 //
 import cats.implicits._
 import cats.effect._
@@ -28,32 +31,91 @@ object Index {
   case class WriteResponse(operationId:String,serviceTime:Long)
 
 
-  def pushTo(where:List[NodeX]) (implicit ctx:NodeContext)= for {
+  def pushTo(rp:ReplicationProcess,where:List[NodeX]) (implicit ctx:NodeContext)= for {
     _  <- IO.unit
-    _ <- ctx.logger.debug(s"PUSH TO ${where.map(_.id).mkString(",")}")
+    _  <- where.traverse{ w=>
+      for {
+         _          <- IO.unit
+         id         = w.id
+         port       = w.port
+         apiVersion = ctx.config.apiVersion
+         uri        = Uri.unsafeFromString(s"http://$id:$port/api/v$apiVersion/write")
+         newRp      = rp.copy(where = Nil)
+         entity     = Entity(body =Stream.emits((newRp::Nil).asJson.noSpaces.getBytes))
+         req        = Request[IO](method = Method.POST,uri = uri,entity = entity)
+         _          <- ctx.client.stream(req = req)
+           .evalTap(response => ctx.logger.debug(s"PUSH_RESPONSE $response"))
+           .compile.drain
+      } yield ()
+    }
+//    _ <- ctx.logger.debug(s"PUSH TO ${where.map(_.id).mkString(",")}")
   } yield ()
 
   def writePush(rp:ReplicationProcess)(implicit ctx:NodeContext,state:Ref[IO,NodeState]) = for {
     currentState <- state.get
+    sinkPath     = Path(ctx.config.sinkPath)
+    nodeId       = ctx.config.nodeId
+    nodePort     = ctx.config.port
+    apiVersion   = ctx.config.apiVersion
     balls        = currentState.balls
     children     = currentState.children
     childrenIds  = children.map(_.id)
-    where        = children.filter(x=>rp.where.contains(x.id))
-    whereElastic = rp.where.filterNot(w=> childrenIds.contains(w)).map(_.id).map(NodeId.fromStr)
-    _ <- ctx.logger.debug("ELASTIC: "+whereElastic.asJson.spaces4)
+    rpWheresIds  = rp.where.map(_.id)
+    where        = children.filter(x=>rpWheresIds.contains(x.id))
+    whereElastic = rp.where.filterNot(w=> childrenIds.contains(w.id))
+    _            <- ctx.logger.debug("ELASTIC: "+whereElastic.asJson.spaces4)
+    xs           <- if(rp.elastic)
+      whereElastic.traverse {
+        w =>
+          val port = w.metadata.getOrElse("PORT", Random.between(10000,25000).toString)
+          val portInt = port.toInt
+          println(s"PORT $port")
+
+          Spawner.createNode(
+            nodeId = w.id,
+            ports  = Docker.Ports( host = portInt, docker= nodePort),
+            environments = Map(
+              "NODE_ID" -> w.id,
+              "NODE_PORT" -> nodePort.toString,
+              "SINK_PATH" -> "/sink",
+              "PARENT_NODE" -> nodeId,
+              "PARENT_PORT" -> nodePort.toString,
+              "LOG_PATH" -> "/logs"
+            ),
+            volumes = Map(
+              s"/test/sink/${w.id}"->"/sink",
+              s"/test/logs/${w.id}" -> "/logs",
+              "/var/run/docker.sock" -> "/var/run/docker.sock"
+            ),
+            resources = Docker.Resources.empty
+          ) *> state.update(s=>s.copy(
+            pendingReplications =  s.pendingReplications :+ rp.copy(
+              who = w.id,
+              what = rp.what.map{ w =>
+                val url  = s"http://$nodeId:$nodePort/api/v$apiVersion/read/${w.ballId}"
+                w.copy(url = url)
+              },
+              where = Nil
+            )
+          ))
+      }.onError{ e=>
+        ctx.logger.error(e.getMessage)
+      }
+    else IO.pure(Nil)
 //  _______________________________________________________________________
     _            <- rp.what.traverse{ b=>
       for {
         _      <- IO.unit
         exists = balls.keys.toList.contains(b.ballId)
-        _      <- if(exists) pushTo(where)
+        _      <- if(exists) pushTo(rp,where )
         else for {
           downloadStartTime <- IO.realTime.map(_.toMillis)
           readReq           = Request[IO](method = Method.GET, uri = Uri.unsafeFromString(b.url))
-          path              = Path(s"${ctx.config.sinkPath}/${b.ballId}")
+          path              = sinkPath/b.ballId
            _                <- ctx.client.stream(req = readReq).flatMap(_.body).through(Files[IO].writeAll(path = path)).compile.drain
           downloadST        <- IO.realTime.map(_.toMillis - downloadStartTime)
-          _                 <- ctx.logger.debug(s"DOWNLOAD ${b.ballId} $downloadST")
+          _                 <- ctx.logger.debug(s"DOWNLOAD $nodeId ${b.ballId} $downloadST")
+          _                 <- pushTo(rp,where)
         } yield ()
 
       } yield ()
@@ -91,20 +153,30 @@ object Index {
 //  __________________________________________________________________________
   } yield response
 
-  def read(ballId:String)(implicit ctx:NodeContext) = for {
-    _        <- IO.unit
-    headers  = Headers.empty
-    status   = Status.Ok
-    writeResponseData   = WriteResponse(operationId = "op-0", serviceTime = 1L)
-    ent      = Entity(
-      body = Stream.emits(writeResponseData.asJson.noSpaces.getBytes).covary[IO],
-      length = None
-    )
-    response = Response[IO](
-      status = status,
-      headers = headers,
-      entity = ent
-    )
+  def read(ballId:String)(implicit ctx:NodeContext,state:Ref[IO,NodeState]) = for {
+    arrivalTime <- IO.realTime.map(_.toMillis)
+    sinkPathStr = ctx.config.sinkPath
+    sinkPath    = Path(sinkPathStr)
+    ballPath    = sinkPath / ballId
+    exists      <- Files[IO].exists(ballPath)
+    response    <- if(exists) for {
+      _        <- IO.unit
+      ballSize <- Files[IO].size(ballPath)
+      headers  = Headers(
+        Header.Raw(CIString("Ball-Size"),ballSize.toString )
+      )
+      status   = Status.Ok
+      ent      = Entity(
+        body   = Files[IO].readAll(ballPath),
+        length = None
+      )
+      response = Response[IO](
+        status = status,
+        headers = headers,
+        entity = ent
+      )
+    } yield response
+    else Response(status = Status.NotFound).pure[IO]
   } yield response
 
   def completeOperation(operationId:String)(implicit ctx:NodeContext) = for {
@@ -131,19 +203,21 @@ object Index {
   } yield response
 
   def info(implicit ctx:NodeContext,state:Ref[IO,NodeState]): IO[Response[IO]] = for {
-    arrivalTime <- IO.realTime.map(_.toMillis)
-    nodeId       = ctx.config.nodeId
-    diskCapacity = ctx.config.diskCapacity
-    memCap       = ctx.config.memoryCapacity
-    currentState <- state.get
-    balls        = currentState.balls
-    children     = currentState.children
-    nodeInfo     = NodeInfo(
-      id             = nodeId,
-      diskCapacity   = diskCapacity,
-      memoryCapacity = memCap,
-      balls          = balls.values.toList,
-      children       = children
+    arrivalTime         <- IO.realTime.map(_.toMillis)
+    nodeId              = ctx.config.nodeId
+    diskCapacity        = ctx.config.diskCapacity
+    memCap              = ctx.config.memoryCapacity
+    currentState        <- state.get
+    balls               = currentState.balls
+    children            = currentState.children
+    pendingReplications = currentState.pendingReplications
+    nodeInfo            = NodeInfo(
+      id                  = nodeId,
+      diskCapacity        = diskCapacity,
+      memoryCapacity      = memCap,
+      balls               = balls.values.toList,
+      children            = children,
+      pendingReplications = pendingReplications
     )
     entity       = Entity(body = Stream.emits(nodeInfo.asJson.noSpaces.getBytes))
     response     = Response[IO](

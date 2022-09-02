@@ -169,15 +169,6 @@ class DockerAPI(config: DockerClientConfig,httpClient: DockerHttpClient) {
     )
   }
 
-//  def createContainerV2(x: CreateContainerData) = {
-//    IO.pure(
-//      client.createContainerCmd(x.image.build)
-//        .withName(x.name.build)
-//        .withHostName(x.hostname.build)
-//        .withEnv(x.envs.build: _*)
-//        .withHostConfig(x.hostConfig)
-//    )
-//  }
 
 }
 object DockerAPI {
