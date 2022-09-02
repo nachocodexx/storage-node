@@ -151,6 +151,162 @@ The result of the replication process is shown below, assuming that /test/sink i
     └── b2
 ```
 
+The second example is create a system that follows the next diagram:
+<div align="center">
+    <a href="#">
+        <img  src="images/ex2.png" alt="Logo" width="450" height="350">
+    </a>
+</div>
+The code that represents the shown diagram is as follows:
+
+```yaml
+[
+  {
+      "who":"",
+      "what":[
+          {
+            "ballId": "b3",
+            "url":"http://www.africau.edu/images/default/sample.pdf",
+            "metadata":{"extension":"pdf"}
+          },
+          {
+            "ballId": "b4",
+            "url":"http://www.africau.edu/images/default/sample.pdf",
+            "metadata":{"extension":"pdf"}
+          }
+      ],
+      "where":[
+          {
+              "id":"sn0_sn1",
+              "metadata":{}
+          }
+      ],
+      "how":{
+          "replicationTechnique":"PASSIVE",
+          "transferType":"PUSH",
+          "deferred": true
+      },
+      "when":{
+          "timing":"REACTIVE",
+          "metadata":{"test":"1"}
+      },
+      "elastic":true
+  },
+    {
+      "who":"sn0_sn1",
+      "what":[
+          {
+            "ballId": "b3",
+            "url":"http://www.africau.edu/images/default/sample.pdf",
+            "metadata":{"extension":"pdf"}
+          },
+          {
+            "ballId": "b4",
+            "url":"http://www.africau.edu/images/default/sample.pdf",
+            "metadata":{"extension":"pdf"}
+          }
+      ],
+      "where":[
+          {
+              "id":"sn0_sn2",
+              "metadata":{}
+          }
+      ],
+      "how":{
+          "replicationTechnique":"PASSIVE",
+          "transferType":"PUSH",
+          "deferred": true
+      },
+      "when":{
+          "timing":"REACTIVE",
+          "metadata":{}
+      },
+      "elastic":true
+  },
+    {
+      "who":"sn0_sn2",
+      "what":[
+          {
+            "ballId": "b3",
+            "url":"http://www.africau.edu/images/default/sample.pdf",
+            "metadata":{"extension":"pdf"}
+          },
+          {
+            "ballId": "b4",
+            "url":"http://www.africau.edu/images/default/sample.pdf",
+            "metadata":{"extension":"pdf"}
+          }
+      ],
+      "where":[
+          {
+              "id":"sn0_sn3",
+              "metadata":{}
+          }
+      ],
+      "how":{
+          "replicationTechnique":"PASSIVE",
+          "transferType":"PUSH",
+          "deferred": true
+      },
+      "when":{
+          "timing":"REACTIVE",
+          "metadata":{}
+      },
+      "elastic":true
+  },
+    {
+      "who":"sn0_sn3",
+      "what":[
+          {
+            "ballId": "b3",
+            "url":"http://www.africau.edu/images/default/sample.pdf",
+            "metadata":{"extension":"pdf"}
+          },
+          {
+            "ballId": "b4",
+            "url":"http://www.africau.edu/images/default/sample.pdf",
+            "metadata":{"extension":"pdf"}
+          }
+      ],
+      "where":[
+          {
+              "id":"sn0_sn4",
+              "metadata":{}
+          }
+      ],
+      "how":{
+          "replicationTechnique":"PASSIVE",
+          "transferType":"PUSH",
+          "deferred": true
+      },
+      "when":{
+          "timing":"REACTIVE",
+          "metadata":{}
+      },
+      "elastic":true
+  }
+]
+```
+
+The result of the replication process is shown below, assuming that /test/sink is the path that was used to place the volumes:
+```bash
+/test/sink
+├── sn0
+│   ├── b3
+│   └── b4
+├── sn0_sn1
+│   ├── b3
+│   └── b4
+├── sn0_sn2
+│   ├── b3
+│   └── b4
+├── sn0_sn3
+│   ├── b3
+│   └── b4
+└── sn0_sn4
+    ├── b3
+    └── b4
+```
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- CONTRIBUTING -->
