@@ -74,6 +74,82 @@ The system is deployed using docker compose
 
 <!-- USAGE EXAMPLES -->
 ## Usage
+The first example is create a system that follows the next diagram:
+<div align="center">
+    <a href="#">
+        <img  src="images/ex1.png" alt="Logo" width="350" height="450">
+    </a>
+</div>
+The code that represents the shown diagram is as follows:
+
+```yaml
+[
+  {
+      "who":"",
+      "what":[
+          {
+            "ballId": "b1",
+            "url":"http://www.africau.edu/images/default/sample.pdf",
+            "metadata":{"extension":"pdf"}
+          },
+        {
+          "ballId": "b2",
+          "url":"http://www.africau.edu/images/default/sample.pdf",
+          "metadata":{"extension":"pdf"}
+        }      
+      ],
+      "where":[
+          {
+              "id":"sn0_sn1",
+              "metadata":{}
+          },
+          {
+              "id":"sn0_sn2",
+              "metadata":{}
+          },
+          {
+              "id":"sn0_sn3",
+              "metadata":{}
+          },
+          {
+              "id":"sn0_sn4",
+              "metadata":{}
+          }
+      ],
+      "how":{
+          "replicationTechnique":"ACTIVE",
+          "transferType":"PUSH",
+          "deferred": true
+      },
+      "when":{
+          "timing":"REACTIVE",
+          "metadata":{"test":"1"}
+      },
+      "elastic":true
+  }
+
+]
+```
+
+The result of the replication process is shown below, assuming that /test/sink is the path that was used to place the volumes:
+```bash
+/test/sink
+├── sn0
+│   ├── b1
+│   └── b2
+├── sn0_sn1
+│   ├── b1
+│   └── b2
+├── sn0_sn2
+│   ├── b1
+│   └── b2
+├── sn0_sn3
+│   ├── b1
+│   └── b2
+└── sn0_sn4
+    ├── b1
+    └── b2
+```
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 

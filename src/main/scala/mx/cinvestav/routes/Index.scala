@@ -70,34 +70,39 @@ object Index {
           val port = w.metadata.getOrElse("PORT", Random.between(10000,25000).toString)
           val portInt = port.toInt
           println(s"PORT $port")
-
-          Spawner.createNode(
-            nodeId = w.id,
-            ports  = Docker.Ports( host = portInt, docker= nodePort),
-            environments = Map(
-              "NODE_ID" -> w.id,
-              "NODE_PORT" -> nodePort.toString,
-              "SINK_PATH" -> "/sink",
-              "PARENT_NODE" -> nodeId,
-              "PARENT_PORT" -> nodePort.toString,
-              "LOG_PATH" -> "/logs"
-            ),
-            volumes = Map(
-              s"/test/sink/${w.id}"->"/sink",
-              s"/test/logs/${w.id}" -> "/logs",
-              "/var/run/docker.sock" -> "/var/run/docker.sock"
-            ),
-            resources = Docker.Resources.empty
-          ) *> state.update(s=>s.copy(
-            pendingReplications =  s.pendingReplications :+ rp.copy(
-              who = w.id,
-              what = rp.what.map{ w =>
-                val url  = s"http://$nodeId:$nodePort/api/v$apiVersion/read/${w.ballId}"
-                w.copy(url = url)
-              },
-              where = Nil
-            )
-          ))
+          for {
+            _ <- IO.unit
+            spawn = Spawner.createNode(
+                nodeId = w.id,
+                ports  = Docker.Ports( host = portInt, docker= nodePort),
+                environments = Map(
+                  "NODE_ID" -> w.id,
+                  "NODE_PORT" -> nodePort.toString,
+                  "SINK_PATH" -> "/sink",
+                  "PARENT_NODE" -> nodeId,
+                  "PARENT_PORT" -> nodePort.toString,
+                  "LOG_PATH" -> "/logs"
+                ),
+                volumes = Map(
+                  s"/test/sink/${w.id}"->"/sink",
+                  s"/test/logs/${w.id}" -> "/logs",
+                  "/var/run/docker.sock" -> "/var/run/docker.sock"
+                ),
+                resources = Docker.Resources.empty
+              )
+             _ <- if(rp.how.deferred) spawn.start.void else spawn.void
+            _ <- state.update{s=>
+              val newRp = rp.copy(
+                  who = w.id,
+                  what = rp.what.map{ w =>
+                    val url  = s"http://$nodeId:$nodePort/api/v$apiVersion/read/${w.ballId}"
+                    w.copy(url = url)
+                  },
+                  where = Nil
+              )
+              s.copy(pendingReplications =  s.pendingReplications :+ newRp)
+            }
+          } yield ()
       }.onError{ e=>
         ctx.logger.error(e.getMessage)
       }
@@ -137,7 +142,8 @@ object Index {
 //    _______________________________________________________________
     headers              = Headers.empty
     status               = Status.Ok
-    writeResponseData    = WriteResponse(operationId = "op-0", serviceTime = 1L)
+    serviceTime          <- IO.realTime.map(_.toMillis - arrivalTime)
+    writeResponseData    = WriteResponse(operationId = s"op-$", serviceTime = serviceTime)
     bytes                = writeResponseData.asJson.noSpaces.getBytes
 //  __________________________________________________________________________
     ent                  = Entity(
